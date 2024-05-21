@@ -1,0 +1,9 @@
+proxy_location: HeadOnly
+http_options:
+  host: 127.0.0.1
+  port: 8000
+
+applications:
+  - name: rtp_pay_uk_app
+    route_prefix: /model
+    import_path: rtp_pay_uk.deployment_graph

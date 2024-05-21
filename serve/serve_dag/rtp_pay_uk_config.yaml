@@ -1,0 +1,14 @@
+host: 127.0.0.1
+port: 8000
+
+import_path: rtp_pay_uk.deployment_graph
+
+runtime_env: {}
+
+deployments:
+
+- name: RtpPayUK
+  num_replicas: 1
+
+
+- name: DAGDriver

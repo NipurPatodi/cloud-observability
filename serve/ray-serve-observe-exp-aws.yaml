@@ -1,0 +1,88 @@
+apiVersion: ray.io/v1
+kind: RayService
+metadata:
+  name: rs-obs-exp
+spec:
+  # serveConfigV2 takes a yaml multi-line scalar, which should be a Ray Serve multi-application config. See https://docs.ray.io/en/latest/serve/multi-app.html.
+  serveConfigV2: |
+    applications:
+      - name: rtp_pay_uk_app
+        import_path: rtp_pay_uk.deployment_graph
+        route_prefix: /model
+        deployments:
+          - name: RtpPayUK
+            num_replicas: 1
+            ray_actor_options:
+              num_cpus: 1
+  rayClusterConfig:
+    rayVersion: '2.21.0' # should match the Ray version in the image of the containers
+    ######################headGroupSpecs#################################
+    # Ray head pod template.
+    headGroupSpec:
+      # The `rayStartParams` are used to configure the `ray start` command.
+      # See https://github.com/ray-project/kuberay/blob/master/docs/guidance/rayStartParams.md for the default settings of `rayStartParams` in KubeRay.
+      # See https://docs.ray.io/en/latest/cluster/cli.html#ray-start for all available options in `rayStartParams`.
+      rayStartParams:
+        dashboard-host: '0.0.0.0'
+      #pod template
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: nipur/ray-observe:2.21.10
+              resources:
+                limits:
+                  cpu: 4
+                  memory: 8Gi
+                requests:
+                  cpu: 3
+                  memory: 6Gi
+              ports:
+                - containerPort: 6379
+                  name: gcs-server
+                - containerPort: 8265 # Ray dashboard
+                  name: dashboard
+                - containerPort: 10001
+                  name: client
+                - containerPort: 8000
+                  name: serve
+               # - containerPort: 44217
+               #   name: as-metrics # autoscaler
+               # - containerPort: 44227
+               #   name: dash-metrics # dashboard
+
+              #env:
+              #  - name: RAY_GRAFANA_IFRAME_HOST
+              #    value: http://127.0.0.1:3000
+              #  - name: RAY_GRAFANA_HOST
+              #    value: http://prometheus-grafana.prometheus-system.svc:80
+              #  - name: RAY_PROMETHEUS_HOST
+              #    value: http://prometheus-kube-prometheus-prometheus.prometheus-system.svc:9090
+    workerGroupSpecs:
+      # the pod replicas in this group typed worker
+      - replicas: 0
+        minReplicas: 1
+        maxReplicas: 5
+        # logical group name, for this called small-group, also can be functional
+        groupName: small-group
+        # The `rayStartParams` are used to configure the `ray start` command.
+        # See https://github.com/ray-project/kuberay/blob/master/docs/guidance/rayStartParams.md for the default settings of `rayStartParams` in KubeRay.
+        # See https://docs.ray.io/en/latest/cluster/cli.html#ray-start for all available options in `rayStartParams`.
+        rayStartParams: {}
+        #pod template
+        template:
+          spec:
+            containers:
+              - name: ray-worker # must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc'
+                image: nipur/ray-observe:2.21.10
+                lifecycle:
+                  preStop:
+                    exec:
+                      command: ["/bin/sh","-c","ray stop"]
+                resources:
+                  limits:
+                    cpu: "2"
+                    memory: "4Gi"
+                  requests:
+                    cpu: "2"
+                    memory: "4Gi"
